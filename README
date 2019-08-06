@@ -1,0 +1,4 @@
+This repo hosts the C-version of mpibind that uses
+the hwloc C-API. In addition, tests to verify the 
+algorithm against the mpibind bash script are hosted here. 
+
