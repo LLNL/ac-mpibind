@@ -23,10 +23,8 @@ void mpibind_gather_options(){
             dryrun = 1;
         }
         else{
-          fprintf(stderr, "CAFEBABE %s\n", ptr2);
           ptr = strstr(ptr2, "smt=");
           if(ptr != NULL){
-              fprintf(stderr, "CAFEBABE\n");
               while(*ptr != '='){
                   ptr++;
               }
@@ -163,7 +161,7 @@ void mpibind_package_list_destroy(hwloc_pkg_l **pkg_l){
 }
 
 void mpibind_compute_thread_number_per_package(hwloc_topology_t topology, hwloc_pkg_l **pkg_l, int nthread){
-    int i, ii, tmp_int;
+    int i, tmp_int;
     hwloc_pkg_l *tmp_pkg_l;
 
     #ifdef __DEBUG
@@ -212,8 +210,8 @@ void mpibind_compute_thread_number_per_package(hwloc_topology_t topology, hwloc_
         }
         #ifdef __DEBUG
         fprintf(stderr, "\tPackage%d Workers: %d\n", tmp_pkg_l->pkg->os_index, tmp_pkg_l->nb_worker);
-        for(ii=0; ii<tmp_pkg_l->nb_process; ii++){
-            fprintf(stderr, "\t\tProcess%d Threads: %d\n", tmp_pkg_l->process[ii].local_id, tmp_pkg_l->process[ii].nb_thread);
+        for(i=0; i<tmp_pkg_l->nb_process; i++){
+            fprintf(stderr, "\t\tProcess%d Threads: %d\n", tmp_pkg_l->process[i].local_id, tmp_pkg_l->process[i].nb_thread);
         }
         #endif /* __DEBUG */
         /* next package */

@@ -40,7 +40,10 @@ void mpibind(int local_nprocess, int nthread){
     mpibind_assign_gpu(topology, &pkg_l, &gpu_l);
 
     /**** Print results as mpibind dryrun ****/
-    mpibind_dryrun_print(pkg_l);
+    if(verbose || dryrun) mpibind_dryrun_print(pkg_l);
+    
+    /**** Create a message Flux to transmit cpusets ****/
+    if(!dryrun) not_implemented();
 
     /**** Free stuff  ****/
     /* Free package list */
