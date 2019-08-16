@@ -1,5 +1,8 @@
 #include "core/include/mpibind.h"
 
+int verbose = -1;
+int dryrun  = -1;
+int smt     = -1;
 
 /****                          MAIN FUNCTION                             ****/
 void mpibind(int local_nprocess, int nthread){
@@ -9,6 +12,9 @@ void mpibind(int local_nprocess, int nthread){
     hwloc_gpu_l *gpu_l;
 
     pkg_l = NULL; gpu_l = NULL;
+
+    /**** Get function options from the MPIBIND environment variable ****/
+    mpibind_gather_options();
 
     /**** Create and retrive topology ****/
     topology = mpibind_get_topology();

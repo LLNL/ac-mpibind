@@ -5,6 +5,43 @@
 /****                         MPIBIND FUNCTIONS                          ****/
 void not_implemented(){}
 
+void mpibind_gather_options(){
+    char *mpibind_env;
+    char *ptr, *ptr2;
+
+    mpibind_env = getenv("MPIBIND");
+    if(mpibind_env == NULL)       /* Check if environment varibale exists */
+        return;
+
+    /* Separate the string inti individual option strings */
+    ptr2 = strtok (mpibind_env, ".");
+    while (ptr2 != NULL){
+        if(!strcmp(ptr2, "v")){
+            verbose = 1;
+        }
+        else if(!strcmp(ptr2, "dry")){
+            dryrun = 1;
+        }
+        else{
+          fprintf(stderr, "CAFEBABE %s\n", ptr2);
+          ptr = strstr(ptr2, "smt=");
+          if(ptr != NULL){
+              fprintf(stderr, "CAFEBABE\n");
+              while(*ptr != '='){
+                  ptr++;
+              }
+              ptr++;
+              smt = atoi(ptr);
+          }
+        }
+        ptr2 = strtok (NULL, ".");
+    }
+    #ifdef __DEBUG
+    fprintf(stderr, "*** Getting options from the MPIBIND environment variable:\n");
+    fprintf(stderr, "\tverbose: %d\n\tdryrun: %d\n\tsmt: %d\n\n", verbose, dryrun, smt);
+    #endif /* __DEBUG */
+}
+
 hwloc_topology_t mpibind_get_topology(){
     int ret;
     hwloc_topology_t topology;

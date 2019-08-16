@@ -3,6 +3,10 @@
 
 #define __DEBUG
 
+extern int verbose;
+extern int dryrun;
+extern int smt;
+
 /****************************************************************************/
 /*                               INCLUDES                                   */
 /****************************************************************************/
@@ -82,10 +86,15 @@ void mpibind_dryrun_print(hwloc_pkg_l*);
  */
 void not_implemented();
 
+/** mpibind_gather_options
+ * Getting options from the MPIBIND environment variable
+ */
+void mpibind_gather_options(void);
+
 /** mpibind_get_topology
  * Create and retrieve hwloc topology
  */
-hwloc_topology_t mpibind_get_topology();
+hwloc_topology_t mpibind_get_topology(void);
 
 /** mpibind_get_package_number
  * Get the number of packages
