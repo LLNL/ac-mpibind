@@ -230,8 +230,11 @@ void mpibind_mappind_depth_per_package(hwloc_topology_t topology, hwloc_pkg_l **
     tmp_pkg_l = *pkg_l;          /* Used to traverse the package list */
     while(tmp_pkg_l != NULL){
         if(tmp_pkg_l->nb_process == 0) break;
-        if(tmp_pkg_l->nb_worker == 1){
+        else if(tmp_pkg_l->nb_worker == 1){
             tmp_pkg_l->mapping_depth = hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE);
+        }
+        else if(smt > 0){
+            tmp_pkg_l->mapping_depth = hwloc_get_type_depth(topology, HWLOC_OBJ_PU);
         }
         else{
             tmp_int   = hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE);  /* Used to keep track of depth */
@@ -267,10 +270,13 @@ void mpibind_mappind_depth_per_package(hwloc_topology_t topology, hwloc_pkg_l **
 }
 
 void mpibind_create_cpuset(hwloc_topology_t topology, hwloc_pkg_l **pkg_l){
-    int i, ii, tst;
+    int i, ii, k, tst;
     hwloc_pkg_l *tmp_pkg_l;
-    hwloc_obj_t hwloc_obj;
+    hwloc_obj_t hwloc_obj, hwloc_obj2, hwloc_obj3;
     hwloc_cpuset_l *tmp_cpuset_l;
+    hwloc_bitmap_t tmp_cpuset;
+
+    tmp_cpuset = hwloc_bitmap_alloc();
 
     #ifdef __DEBUG
     fprintf(stderr, "\n*** Creating cpusets:\n");
@@ -297,11 +303,45 @@ void mpibind_create_cpuset(hwloc_topology_t topology, hwloc_pkg_l **pkg_l){
             cpuset_elem->cpuset = hwloc_bitmap_alloc();
             hwloc_bitmap_zero(cpuset_elem->cpuset);
             /* Fill the cpusets*/
+            /* Get the first child cpu of the proviously found object */
+            if(hwloc_obj->type != HWLOC_OBJ_CORE && hwloc_obj->type != HWLOC_OBJ_PU){
+                hwloc_obj2 = hwloc_get_next_child (topology, hwloc_obj, NULL);
+                while(hwloc_obj2->type != HWLOC_OBJ_CORE || hwloc_obj2->type != HWLOC_OBJ_PU){
+                    hwloc_obj2 = hwloc_get_next_child (topology, hwloc_obj, hwloc_obj2);
+                }
+            }
+            else hwloc_obj2 = hwloc_obj;
+            /* then put process->nb_thread core in the cpuset (1 pu per core) */
             for(ii = 0; ii<tmp_pkg_l->process[i].nb_thread ; ii++){
-                hwloc_bitmap_singlify(hwloc_obj->cpuset);
+                hwloc_bitmap_copy(tmp_cpuset, hwloc_obj->cpuset);
+                hwloc_bitmap_singlify(tmp_cpuset);
                 /* Add the obj's cpuset to the process' cpuset */
-                hwloc_bitmap_or(cpuset_elem->cpuset, cpuset_elem->cpuset, hwloc_obj->cpuset);
-                /* Get the new object of next iteration or next process */
+                hwloc_bitmap_or(cpuset_elem->cpuset, cpuset_elem->cpuset, tmp_cpuset);
+                /* If smt is defined we want to use more than one hardware thread.
+                 * We can add more from here by looking at all the pus from the selected cores
+                 * We added the first pu before the smt loop in case there is no pu in the core */
+                if(smt < 1) smt = 1; /* To simplify the allocation, if smt was not defined by user it is now set to 1 */
+                /* Two cases possible:
+                 *   - The mapping depth was higher than PU: the hwloc_obj found is a core, and we can allocate smt pu on it
+                 *   - The mapping depth was already pu:  ???? */
+                if(hwloc_obj->type == HWLOC_OBJ_CORE){
+                    hwloc_obj3 = hwloc_get_next_child (topology, hwloc_obj2, NULL);
+                    if(!hwloc_obj3) break;
+                    for(k=0; k<smt-1; k++){
+                        /* Get PU */
+                        hwloc_obj3 = hwloc_get_next_child (topology, hwloc_obj2, hwloc_obj3);
+                        if(!hwloc_obj3) break;
+                        /* Add PU to cpuset */
+                        hwloc_bitmap_copy(tmp_cpuset, hwloc_obj3->cpuset);
+                        hwloc_bitmap_singlify(tmp_cpuset);
+                        /* Add the obj's cpuset to the process' cpuset */
+                        hwloc_bitmap_or(cpuset_elem->cpuset, cpuset_elem->cpuset, tmp_cpuset);
+                    }
+                }
+                else{ /* Mapping depth was already pu */
+                    /* TODO: I think we do nothing here */
+                }
+                /* Get the new object for next iteration or next process */
                 hwloc_obj = hwloc_get_next_obj_by_depth(topology, tmp_pkg_l->mapping_depth, hwloc_obj);
             }
             /* Add element to the package cpuset list */
@@ -326,6 +366,7 @@ void mpibind_create_cpuset(hwloc_topology_t topology, hwloc_pkg_l **pkg_l){
         /* next package */
         tmp_pkg_l = tmp_pkg_l->next;
     }
+    hwloc_bitmap_free(tmp_cpuset);
 }
 
 void mpibind_gpu_list_init(hwloc_topology_t topology, hwloc_gpu_l **gpu_l){

@@ -1,5 +1,6 @@
 #include "core/include/mpibind.h"
 
+/****                           GLOBAL VARS                              ****/
 int verbose = -1;
 int dryrun  = -1;
 int smt     = -1;
