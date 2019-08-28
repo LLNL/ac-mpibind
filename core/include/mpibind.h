@@ -1,7 +1,7 @@
 #ifndef __MPIBIND_H__
 #define __MPIBIND_H__
 
-//#define __DEBUG
+#define __DEBUG
 
 /****************************************************************************/
 /*                               INCLUDES                                   */
@@ -51,6 +51,7 @@ typedef struct hwloc_gpu_l_s hwloc_gpu_l;
 struct hwloc_pkg_l_s{
     struct hwloc_pkg_l_s *next;
     hwloc_obj_t pkg;                /* Pointer to the hwloc package object */
+    int index;                      /* Mpibind defined index */
     int nb_core;                    /* Number of cores in this package */
     int nb_pu;                      /* Number of pus in this package */
     int nb_process;                 /* Number of processes to be mapped on this package */
@@ -109,6 +110,13 @@ void mpibind_get_package_number(hwloc_topology_t);
  * Create a list of package from the topology
  * Determine the number of cores and pu per package
  * Also determine the number of process per package and initialise an array of process per package
+ * NOTE: Packages in this implementation of mpibind are 'NUMA' from old mpibind implementations
+ *       Hwloc uses NUMA objects in a different way
+ *       Depending on the topology, numa can contain resources or not, package can contain Numa object or the other way around
+ *       Numa objects not containing resources won't be include in hwloc packages
+ *       This functions looks either for package or numa, depending on the topology
+ *** If a package contains one or multiple group, it might contain multiple numa objects
+ *** If a group is found in a package, determine if it's a numa object, and create as many 'packages' as numa objects
  */
 void mpibind_package_list_init(hwloc_topology_t, hwloc_pkg_l**, int);
 

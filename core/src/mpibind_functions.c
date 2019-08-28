@@ -1,6 +1,6 @@
 #include "core/include/mpibind.h"
 
-#include <math.h>       /* For ceil(...) */
+#include <math.h>       /* For ceil(...) and floor(...) */
 
 /****                         MPIBIND FUNCTIONS                          ****/
 void not_implemented(){}
@@ -85,46 +85,115 @@ void mpibind_package_list_init(hwloc_topology_t topology, hwloc_pkg_l **pkg_l, i
     int i, ii, tmp_int;
     hwloc_pkg_l *tmp_pkg_l;
     static int process_loc_id_keeper = 0;
+    static int pkg_nb_generator = 0;
+    int numa_nb;
+    hwloc_obj_t tmp_obj, tmp_obj2;
+
 
     #ifdef __DEBUG
     fprintf(stderr, "\n*** Getting the number of cores/pus/process per package\n");
     #endif /* __DEBUG */
+
+    /* First we need to determine the number of numa node on the topology
+     *     We could ask hwloc how many numa are present but some of them don't contain compute resources
+     *     We need to go through each package and count the number of numa nodes there.
+     */
+    numa_nb = 0;
+    for (i=0; i<hwloc_get_nbobjs_by_depth(topology, hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE)); i++){
+        numa_nb++;
+        /*Get the package */
+        tmp_obj = hwloc_get_obj_by_depth(topology, hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE), i);
+        /* Look if package contains multiple NUMA objects */
+        tmp_obj2 = hwloc_get_next_obj_inside_cpuset_by_type(topology, tmp_obj->cpuset, HWLOC_OBJ_NUMANODE, NULL);
+        while(tmp_obj2){
+            numa_nb ++;
+            tmp_obj2 = hwloc_get_next_obj_inside_cpuset_by_type(topology, tmp_obj->cpuset, HWLOC_OBJ_NUMANODE, tmp_obj2);
+        }
+    }
+
     tmp_int = local_nprocess; /* Used to count remaining processes to distribute */
     tmp_pkg_l = *pkg_l;       /* Used to easily insert package in the list */
     for (i=0; i<hwloc_get_nbobjs_by_depth(topology, hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE)); i++){
-        /* Crete new list element */
-        hwloc_pkg_l *pkg_obj; pkg_obj = NULL;
-        pkg_obj = malloc(sizeof(hwloc_pkg_l));
-        /* Fill object */
-        pkg_obj->next       = NULL;
-        pkg_obj->pkg        = hwloc_get_obj_by_depth(topology, hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE), i);
-        pkg_obj->nb_core    = hwloc_get_nbobjs_inside_cpuset_by_type(topology, pkg_obj->pkg->cpuset, HWLOC_OBJ_CORE);
-        pkg_obj->nb_pu      = hwloc_get_nbobjs_inside_cpuset_by_type(topology, pkg_obj->pkg->cpuset, HWLOC_OBJ_PU);
-        pkg_obj->nb_process = ceil(tmp_int / 
-                                (hwloc_get_nbobjs_by_depth(topology, hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE)) - i)); 
-                                /* Remaining processes / remaining packages */
-        tmp_int--;
-        pkg_obj->nb_worker  = 0;
-        pkg_obj->gpu_l      = NULL;
-        pkg_obj->cpuset_l   = NULL;
-        pkg_obj->process    = NULL;
-        pkg_obj->process = malloc(pkg_obj->nb_process*sizeof(mpibind_process));
-        for(ii=0; ii<pkg_obj->nb_process; ii++){
-            pkg_obj->process[ii].local_id = process_loc_id_keeper;
-            process_loc_id_keeper++;
-            pkg_obj->process[ii].global_id = -1;
-            pkg_obj->process[ii].nb_thread = -1;
+        /*Get the package */
+        tmp_obj = hwloc_get_obj_by_depth(topology, hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE), i);
+        /* Look if package contains multiple NUMA objects */
+        tmp_obj2 = hwloc_get_next_obj_inside_cpuset_by_type(topology, tmp_obj->cpuset, HWLOC_OBJ_NUMANODE, NULL);
+        if(tmp_obj2){
+            while(tmp_obj2){
+                /* Crete new list element */
+                hwloc_pkg_l *pkg_obj; pkg_obj = NULL;
+                pkg_obj = malloc(sizeof(hwloc_pkg_l));
+                /* Fill object */
+                pkg_obj->next       = NULL;
+                pkg_obj->pkg        = tmp_obj2->parent;
+                pkg_obj->index      = pkg_nb_generator;
+                pkg_nb_generator++;
+                pkg_obj->nb_core    = hwloc_get_nbobjs_inside_cpuset_by_type(topology, pkg_obj->pkg->cpuset, HWLOC_OBJ_CORE);
+                pkg_obj->nb_pu      = hwloc_get_nbobjs_inside_cpuset_by_type(topology, pkg_obj->pkg->cpuset, HWLOC_OBJ_PU);
+                pkg_obj->nb_process = (int)floor(tmp_int / numa_nb) + 1; /* Remaining processes / remaining packages */
+                tmp_int -= pkg_obj->nb_process;
+                numa_nb--;
+                pkg_obj->nb_worker  = 0;
+                pkg_obj->gpu_l      = NULL;
+                pkg_obj->cpuset_l   = NULL;
+                pkg_obj->process    = NULL;
+                pkg_obj->process = malloc(pkg_obj->nb_process*sizeof(mpibind_process));
+                for(ii=0; ii<pkg_obj->nb_process; ii++){
+                    pkg_obj->process[ii].local_id = process_loc_id_keeper;
+                    process_loc_id_keeper++;
+                    pkg_obj->process[ii].global_id = -1;
+                    pkg_obj->process[ii].nb_thread = -1;
+                }
+                /* Debug prints */
+                #ifdef __DEBUG
+                fprintf(stderr, "\tPackage%d: cores:%d, pus:%d, processes:%d\n", 
+                        pkg_obj->index, pkg_obj->nb_core, pkg_obj->nb_pu, pkg_obj->nb_process);
+                #endif /* __DEBUG */
+                /* Add to the list */
+                if(*pkg_l == NULL) *pkg_l = pkg_obj;
+                else tmp_pkg_l->next = pkg_obj;
+                tmp_pkg_l = pkg_obj;
+                if(tmp_int == 0) break;
+
+                /* Get the next numa node */
+                tmp_obj2 = hwloc_get_next_obj_inside_cpuset_by_type(topology, tmp_obj->cpuset, HWLOC_OBJ_NUMANODE, tmp_obj2);
+            }
+        }else{
+            /* Crete new list element */
+            hwloc_pkg_l *pkg_obj; pkg_obj = NULL;
+            pkg_obj = malloc(sizeof(hwloc_pkg_l));
+            /* Fill object */
+            pkg_obj->next       = NULL;
+            pkg_obj->pkg        = hwloc_get_obj_by_depth(topology, hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE), i);
+            pkg_obj->index      = pkg_nb_generator;
+            pkg_nb_generator++;
+            pkg_obj->nb_core    = hwloc_get_nbobjs_inside_cpuset_by_type(topology, pkg_obj->pkg->cpuset, HWLOC_OBJ_CORE);
+            pkg_obj->nb_pu      = hwloc_get_nbobjs_inside_cpuset_by_type(topology, pkg_obj->pkg->cpuset, HWLOC_OBJ_PU);
+            pkg_obj->nb_process = (int)floor(tmp_int / numa_nb) + 1; /* Remaining processes / remaining packages */
+            tmp_int -= pkg_obj->nb_process;
+            numa_nb--;
+            pkg_obj->nb_worker  = 0;
+            pkg_obj->gpu_l      = NULL;
+            pkg_obj->cpuset_l   = NULL;
+            pkg_obj->process    = NULL;
+            pkg_obj->process = malloc(pkg_obj->nb_process*sizeof(mpibind_process));
+            for(ii=0; ii<pkg_obj->nb_process; ii++){
+                pkg_obj->process[ii].local_id = process_loc_id_keeper;
+                process_loc_id_keeper++;
+                pkg_obj->process[ii].global_id = -1;
+                pkg_obj->process[ii].nb_thread = -1;
+            }
+            /* Debug prints */
+            #ifdef __DEBUG
+            fprintf(stderr, "\tPackage%d: cores:%d, pus:%d, processes:%d\n", 
+                    pkg_obj->index, pkg_obj->nb_core, pkg_obj->nb_pu, pkg_obj->nb_process);
+            #endif /* __DEBUG */
+            /* Add to the list */
+            if(*pkg_l == NULL) *pkg_l = pkg_obj;
+            else tmp_pkg_l->next = pkg_obj;
+            tmp_pkg_l = pkg_obj;
+            if(tmp_int == 0) break;
         }
-        /* Debug prints */
-        #ifdef __DEBUG
-        fprintf(stderr, "\tPackage%d: cores:%d, pus:%d, processes:%d\n", 
-                pkg_obj->pkg->os_index, pkg_obj->nb_core, pkg_obj->nb_pu, pkg_obj->nb_process);
-        #endif /* __DEBUG */
-        /* Add to the list */
-        if(*pkg_l == NULL) *pkg_l = pkg_obj;
-        else tmp_pkg_l->next = pkg_obj;
-        tmp_pkg_l = pkg_obj;
-        if(tmp_int == 0) break;
     }
 }
 
@@ -209,7 +278,7 @@ void mpibind_compute_thread_number_per_package(hwloc_topology_t topology, hwloc_
             }
         }
         #ifdef __DEBUG
-        fprintf(stderr, "\tPackage%d Workers: %d\n", tmp_pkg_l->pkg->os_index, tmp_pkg_l->nb_worker);
+        fprintf(stderr, "\tPackage%d Workers: %d\n", tmp_pkg_l->index, tmp_pkg_l->nb_worker);
         for(i=0; i<tmp_pkg_l->nb_process; i++){
             fprintf(stderr, "\t\tProcess%d Threads: %d\n", tmp_pkg_l->process[i].local_id, tmp_pkg_l->process[i].nb_thread);
         }
@@ -255,7 +324,7 @@ void mpibind_mappind_depth_per_package(hwloc_topology_t topology, hwloc_pkg_l **
                     hwloc_obj = hwloc_get_next_obj_by_depth(topology, tmp_pkg_l->mapping_depth, NULL);
                     hwloc_obj_type_snprintf(string, 256, hwloc_obj, 0);
                     fprintf(stderr, "\tPackage%d: nb_process:%d nb_worker:%d depths: %d - %s\n", 
-                            tmp_pkg_l->pkg->os_index, tmp_pkg_l->nb_process, tmp_pkg_l->nb_worker, 
+                            tmp_pkg_l->index, tmp_pkg_l->nb_process, tmp_pkg_l->nb_worker, 
                             tmp_pkg_l->mapping_depth, string);
                     free(string);
                     #endif /* __DEBUG */
@@ -355,7 +424,7 @@ void mpibind_create_cpuset(hwloc_topology_t topology, hwloc_pkg_l **pkg_l){
             #ifdef __DEBUG
             char *string;
             hwloc_bitmap_list_asprintf(&string, cpuset_elem->cpuset);
-            fprintf(stderr, "\tPackage%d: Process%d: cpuset:%s\n", tmp_pkg_l->pkg->os_index, i, string);
+            fprintf(stderr, "\tPackage%d: Process%d: cpuset:%s\n", tmp_pkg_l->index, i, string);
             free(string);
             #endif /* __DEBUG */
         }
@@ -466,7 +535,7 @@ void mpibind_assign_gpu(hwloc_topology_t topology, hwloc_pkg_l **pkg_l, hwloc_gp
             tmp_pkg_l->gpu_l = *gpu_l;
         }
         #ifdef __DEBUG
-        fprintf(stderr, "\tPackage%d full GPU list:", tmp_pkg_l->pkg->os_index);
+        fprintf(stderr, "\tPackage%d full GPU list:", tmp_pkg_l->index);
         tmp_gpu_l_2 = tmp_pkg_l->gpu_l;   /* Used to keep track of the end of the gpu list */
         while(tmp_gpu_l_2 != NULL){
             fprintf(stderr, " %s", tmp_gpu_l_2->gpu->name);
@@ -494,7 +563,7 @@ void mpibind_dryrun_print(hwloc_pkg_l *head){
     while(head != NULL){
         /* Basic infos */
         fprintf(stderr, "## Package%d  nb_process:%d, nb_core:%d, nb_pu:%d, mapping_depth:%d\n",
-                head->pkg->os_index, head->nb_process, head->nb_core, head->nb_pu, head->mapping_depth);
+                head->index, head->nb_process, head->nb_core, head->nb_pu, head->mapping_depth);
         /* Process specific infos */
         cpuset_l = head->cpuset_l;      /* Keep track of process's cpusets */
         gpu_l = head->gpu_l;            /* Keep track of process's gpu(s) */
