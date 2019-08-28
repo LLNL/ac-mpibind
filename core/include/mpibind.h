@@ -1,7 +1,7 @@
 #ifndef __MPIBIND_H__
 #define __MPIBIND_H__
 
-#define __DEBUG
+//#define __DEBUG
 
 /****************************************************************************/
 /*                               INCLUDES                                   */

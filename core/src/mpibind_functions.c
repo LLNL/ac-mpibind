@@ -559,29 +559,29 @@ void mpibind_dryrun_print(hwloc_pkg_l *head){
     hwloc_cpuset_l *cpuset_l;
     hwloc_gpu_l *gpu_l;
 
-    fprintf(stderr, "#### Mpibind binding: ####\n\n");
+    fprintf(stdout, "#### Mpibind binding: ####\n\n");
     while(head != NULL){
         /* Basic infos */
-        fprintf(stderr, "## Package%d  nb_process:%d, nb_core:%d, nb_pu:%d, mapping_depth:%d\n",
+        fprintf(stdout, "## Package%d  nb_process:%d, nb_core:%d, nb_pu:%d, mapping_depth:%d\n",
                 head->index, head->nb_process, head->nb_core, head->nb_pu, head->mapping_depth);
         /* Process specific infos */
         cpuset_l = head->cpuset_l;      /* Keep track of process's cpusets */
         gpu_l = head->gpu_l;            /* Keep track of process's gpu(s) */
         for(ii=0; ii<head->nb_process; ii++){
             /* Process infos */
-            fprintf(stderr, "\tProcess%d Threads: %d\n", head->process[ii].local_id, head->process[ii].nb_thread);
+            fprintf(stdout, "\tProcess%d Threads: %d\n", head->process[ii].local_id, head->process[ii].nb_thread);
             /* cpuset */
             hwloc_bitmap_list_asprintf(&string, cpuset_l->cpuset);
-            fprintf(stderr, "\t\tcpuset_l: %s\n", string);
+            fprintf(stdout, "\t\tcpuset_l: %s\n", string);
             cpuset_l = cpuset_l->next;
             free(string);
             /* GPU(s) */
-            fprintf(stderr, "\t\tgpu_l:");
+            fprintf(stdout, "\t\tgpu_l:");
             while(gpu_l != NULL){
-                fprintf(stderr, " %s", gpu_l->gpu->name);
+                fprintf(stdout, " %s", gpu_l->gpu->name);
                 gpu_l = gpu_l->next;
             }
-            fprintf(stderr, "\n");
+            fprintf(stdout, "\n");
         }
         /* Next package */
         head = head->next;
