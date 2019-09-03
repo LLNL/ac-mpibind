@@ -46,12 +46,12 @@ void mpibind(int local_nprocess, int nthread){
     /**** Create a message Flux to transmit cpusets ****/
     if(!dryrun) not_implemented();
 
-    /**** Free stuff  ****/
-    /* Free package list */
-    mpibind_package_list_destroy(&pkg_l);
-    /* Free the full gpu list */
-    mpibind_gpu_list_destroy(&gpu_l);
-    /* Destroy hwloc topology object. */
-    hwloc_topology_destroy(topology);
+//    /**** Free stuff  ****/
+//    /* Free package list */
+//    mpibind_package_list_destroy(&pkg_l);
+//    /* Free the full gpu list */
+//    mpibind_gpu_list_destroy(&gpu_l);
+//    /* Destroy hwloc topology object. */
+//    hwloc_topology_destroy(topology);
 }
 
