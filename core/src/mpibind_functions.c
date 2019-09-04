@@ -1,77 +1,79 @@
-#include "core/include/mpibind.h"
+#include "core/include/mpibind_functions.h"
 
 #include <math.h>       /* For ceil(...) and floor(...) */
 
 /****                         MPIBIND FUNCTIONS                          ****/
 void not_implemented(){}
 
-void mpibind_gather_options(){
-    char *mpibind_env;
-    char *ptr, *ptr2;
-
-    mpibind_env = getenv("MPIBIND");
-    if(mpibind_env == NULL)       /* Check if environment varibale exists */
-        return;
-
-    /* Separate the string inti individual option strings */
-    ptr2 = strtok (mpibind_env, ".");
-    while (ptr2 != NULL){
-        if(!strcmp(ptr2, "v")){
-            verbose = 1;
-        }
-        else if(!strcmp(ptr2, "dry")){
-            dryrun = 1;
-        }
-        else{
-          ptr = strstr(ptr2, "smt=");
-          if(ptr != NULL){
-              while(*ptr != '='){
-                  ptr++;
-              }
-              ptr++;
-              smt = atoi(ptr);
-          }
-        }
-        ptr2 = strtok (NULL, ".");
-    }
-    #ifdef __DEBUG
-    fprintf(stderr, "*** Getting options from the MPIBIND environment variable:\n");
-    fprintf(stderr, "\tverbose: %d\n\tdryrun: %d\n\tsmt: %d\n\n", verbose, dryrun, smt);
-    #endif /* __DEBUG */
-}
-
-hwloc_topology_t mpibind_get_topology(){
-    int ret;
-    hwloc_topology_t topology;
-    const char *topo_path;
-
-    /* Get topology path from environment variable*/
-    topo_path = getenv("MPIBIND_TOPOLOGY_FILE");
-    if(topo_path == NULL){      /* Check if environment varibale exists */
-        fprintf(stderr, "##ERROR: Could not get topology file from environment variable 'MPIBIND_TOPOLOGY_FILE'\nExit\n");
-        exit(1);
-    }
-    if(access(topo_path, F_OK) == -1){     /* Check if topology file exists */
-        fprintf(stderr, "##ERROR: Could not open topology file '%s'\nExit\n", topo_path);
-        exit(1);
-    }
-
-    /* Allocate and initialize topology object */
-    hwloc_topology_init(&topology);
-    /* Retrieve topology from xml file */
-    ret = hwloc_topology_set_xml(topology, topo_path);
-    if(ret == -1){
-        fprintf(stderr, "##ERROR: Hwloc failed to load topology file '%s'\nExit\n", topo_path);
-        exit(1);
-    }
-    /* Set flags to retrieve PCI devices */
-    hwloc_topology_set_flags(topology, HWLOC_TOPOLOGY_FLAG_THISSYSTEM_ALLOWED_RESOURCES);
-    hwloc_topology_set_all_types_filter(topology, HWLOC_TYPE_FILTER_KEEP_ALL);
-    /* Build Topology */
-    hwloc_topology_load(topology);
-    
-    return topology;
-}
+/* Deprecated */
+//void mpibind_gather_options(){
+//    char *mpibind_env;
+//    char *ptr, *ptr2;
+//
+//    mpibind_env = getenv("MPIBIND");
+//    if(mpibind_env == NULL)       /* Check if environment varibale exists */
+//        return;
+//
+//    /* Separate the string inti individual option strings */
+//    ptr2 = strtok (mpibind_env, ".");
+//    while (ptr2 != NULL){
+//        if(!strcmp(ptr2, "v")){
+//            verbose = 1;
+//        }
+//        else if(!strcmp(ptr2, "dry")){
+//            dryrun = 1;
+//        }
+//        else{
+//          ptr = strstr(ptr2, "smt=");
+//          if(ptr != NULL){
+//              while(*ptr != '='){
+//                  ptr++;
+//              }
+//              ptr++;
+//              smt = atoi(ptr);
+//          }
+//        }
+//        ptr2 = strtok (NULL, ".");
+//    }
+//    #ifdef __DEBUG
+//    fprintf(stderr, "*** Getting options from the MPIBIND environment variable:\n");
+//    fprintf(stderr, "\tverbose: %d\n\tdryrun: %d\n\tsmt: %d\n\n", verbose, dryrun, smt);
+//    #endif /* __DEBUG */
+//}
+//
+/* Deprecated */
+//hwloc_topology_t mpibind_get_topology(){
+//    int ret;
+//    hwloc_topology_t topology;
+//    const char *topo_path;
+//
+//    /* Get topology path from environment variable*/
+//    topo_path = getenv("MPIBIND_TOPOLOGY_FILE");
+//    if(topo_path == NULL){      /* Check if environment varibale exists */
+//        fprintf(stderr, "##ERROR: Could not get topology file from environment variable 'MPIBIND_TOPOLOGY_FILE'\nExit\n");
+//        exit(1);
+//    }
+//    if(access(topo_path, F_OK) == -1){     /* Check if topology file exists */
+//        fprintf(stderr, "##ERROR: Could not open topology file '%s'\nExit\n", topo_path);
+//        exit(1);
+//    }
+//
+//    /* Allocate and initialize topology object */
+//    hwloc_topology_init(&topology);
+//    /* Retrieve topology from xml file */
+//    ret = hwloc_topology_set_xml(topology, topo_path);
+//    if(ret == -1){
+//        fprintf(stderr, "##ERROR: Hwloc failed to load topology file '%s'\nExit\n", topo_path);
+//        exit(1);
+//    }
+//    /* Set flags to retrieve PCI devices */
+//    hwloc_topology_set_flags(topology, HWLOC_TOPOLOGY_FLAG_THISSYSTEM_ALLOWED_RESOURCES);
+//    hwloc_topology_set_all_types_filter(topology, HWLOC_TYPE_FILTER_KEEP_ALL);
+//    /* Build Topology */
+//    hwloc_topology_load(topology);
+//    
+//    return topology;
+//}
 
 void mpibind_get_package_number(hwloc_topology_t topology){
     #ifdef __DEBUG

@@ -1,57 +1,174 @@
 #include "core/include/mpibind.h"
+#include "core/include/mpibind_functions.h"
 
-/****                           GLOBAL VARS                              ****/
-int verbose = -1;
-int dryrun  = -1;
-int smt     = -1;
+#include <stdlib.h>
 
-/****                          MAIN FUNCTION                             ****/
-void mpibind(int local_nprocess, int nthread){
-    hwloc_topology_t topology;
+/****************************************************************************/
+/*                               FUNCTIONS                                  */
+/****************************************************************************/
 
+/* Create an instance of the mpibind handle
+ **/
+mpibind_t *mpibind_create (void){
+    mpibind_t *handle;
+    handle = malloc(sizeof(mpibind_t));
+
+    handle->verbose             = -1;
+    handle->user_smt            = -1;
+    handle->user_num_thread     = -1;
+    handle->omp_proc_bind       = -1;
+
+    return handle;
+}
+
+/* Destroy mpibind handle and free associated memory
+ **/
+void mpibind_destroy (mpibind_t *mh){
+    free(mh);
+}
+
+/****************************************************************************/
+/*                                SETTERS                                   */
+/****************************************************************************/
+
+int mpibind_set_topology (mpibind_t *mh, hwloc_topology_t topo){
+    if (topo != NULL){
+        mh->topo = topo;
+        return 0;
+    }
+    return 1;
+}
+
+int mpibind_set_local_mprocess (mpibind_t *mh, int nprocess){
+    if(nprocess > 0){
+        mh->local_nprocess = nprocess;
+        return 0;
+    }
+    else{
+        mh->local_nprocess = 1;
+        return 0;
+    }
+    return 1;
+}
+
+int mpibind_set_verbose (mpibind_t *mh, int verbose){
+    if (verbose > 0){ 
+        mh->verbose = 1;
+        return 0;
+    }
+    else{ 
+        mh->verbose = -1; 
+        return 0;
+    }
+    return 1;
+}
+
+int mpibind_set_user_smt (mpibind_t *mh, int smt){
+    if(smt > 0){
+        mh->user_smt = smt;
+        return 0;
+    }
+    else{
+        mh->user_smt = 0;
+        return 0;
+    }
+    return 1;
+}
+
+int mpibind_set_user_num_thread  (mpibind_t *mh, int num_thread){
+    if(num_thread > 0){
+        mh->user_num_thread = num_thread;
+        return 0;
+    }
+    else{
+        mh->user_num_thread = 0;
+        return 0;
+    }
+    return 1;
+}
+
+int mpibind_set_omp_proc_bind_provided (mpibind_t *mh){
+    mh->omp_proc_bind = 1;
+    return 0;
+}
+
+/****************************************************************************/
+/*                                GETTERS                                   */
+/****************************************************************************/
+
+hwloc_topology_t mpibind_get_topology (mpibind_t *mh){
+    return mh->topo;
+}
+
+int mpibind_get_local_nprocess (mpibind_t *mh){
+    return mh->local_nprocess;
+}
+
+int mpibind_get_verbose (mpibind_t *mh){
+    return mh->verbose;
+}
+
+int mpibind_get_user_smt (mpibind_t *mh){
+    return mh->user_smt;
+}
+
+int mpibind_get_user_num_thread (mpibind_t *mh){
+    return mh->user_num_thread;
+}
+
+int mpibind_get_omp_proc_bind_provided (mpibind_t *mh){
+    return mh->omp_proc_bind;
+}
+
+
+/****************************************************************************/
+/*                                  MAIN                                    */
+/****************************************************************************/
+
+/* Main mpibind function */
+mpibind_t *mpbind (mpibind_t *mh){
     hwloc_pkg_l *pkg_l;
     hwloc_gpu_l *gpu_l;
 
     pkg_l = NULL; gpu_l = NULL;
 
-    /**** Get function options from the MPIBIND environment variable ****/
-    mpibind_gather_options();
-
-    /**** Create and retrive topology ****/
-    topology = mpibind_get_topology();
+    /* Deprecated */
+    ///**** Get function options from the MPIBIND environment variable ****/
+    //mpibind_gather_options();
+    ///**** Create and retrive topology ****/
+    //topology = mpibind_get_topology();
 
     /**** Get the number of packages ****/
-    mpibind_get_package_number(topology);
+    mpibind_get_package_number(mpibind_get_topology(mh));
 
     /**** Determine the number of cores and pu per package ****/
     /**** Also determine the number of process per package ****/
-    mpibind_package_list_init(topology, &pkg_l, local_nprocess);
+    mpibind_package_list_init(mpibind_get_topology(mh), &pkg_l, mpibind_get_local_nprocess(mh));
 
     /**** Get number of threads with OMP_NUM_THREADS or function arguments ****/
-    mpibind_compute_thread_number_per_package(topology, &pkg_l, nthread);
+    mpibind_compute_thread_number_per_package(mpibind_get_topology(mh), &pkg_l, mpibind_get_user_num_thread(mh));
 
     /**** For each package find the highest topology level such that nvertices >= nb_worker ****/
-    mpibind_mappind_depth_per_package(topology, &pkg_l);
+    mpibind_mappind_depth_per_package(mpibind_get_topology(mh), &pkg_l);
 
     /**** Create process cpusets ****/
-    mpibind_create_cpuset(topology, &pkg_l);
+    mpibind_create_cpuset(mpibind_get_topology(mh), &pkg_l);
 
     /*** GPU management ***/
-    mpibind_gpu_list_init(topology, &gpu_l);
-    mpibind_assign_gpu(topology, &pkg_l, &gpu_l);
+    mpibind_gpu_list_init(mpibind_get_topology(mh), &gpu_l);
+    mpibind_assign_gpu(mpibind_get_topology(mh), &pkg_l, &gpu_l);
 
-    /**** Print results as mpibind dryrun ****/
-    if(verbose || dryrun) mpibind_dryrun_print(pkg_l);
+    /**** Format the mh handle to contain the mpibind result allocation ****/
+    //TODO
+
+    /**** Print results****/
+//    if(mpibind_get_verbose(mh)) mpibind_print(mh);
     
-    /**** Create a message Flux to transmit cpusets ****/
-    if(!dryrun) not_implemented();
-
-//    /**** Free stuff  ****/
-//    /* Free package list */
-//    mpibind_package_list_destroy(&pkg_l);
-//    /* Free the full gpu list */
-//    mpibind_gpu_list_destroy(&gpu_l);
-//    /* Destroy hwloc topology object. */
-//    hwloc_topology_destroy(topology);
+    /**** Free stuff  ****/
+    /* Free package list */
+    mpibind_package_list_destroy(&pkg_l);
+    /* Free the full gpu list */
+    mpibind_gpu_list_destroy(&gpu_l);
+    
+    return mh;
 }
-
