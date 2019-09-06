@@ -18,6 +18,10 @@ mpibind_t *mpibind_create (void){
     handle->user_num_thread     = -1;
     handle->omp_proc_bind       = -1;
 
+    handle->cpuset              = NULL;
+    handle-> gpu_l              = NULL;
+    handle->num_thread          = NULL;
+
     return handle;
 }
 
@@ -39,7 +43,7 @@ int mpibind_set_topology (mpibind_t *mh, hwloc_topology_t topo){
     return 1;
 }
 
-int mpibind_set_local_mprocess (mpibind_t *mh, int nprocess){
+int mpibind_set_local_nprocess (mpibind_t *mh, int nprocess){
     if(nprocess > 0){
         mh->local_nprocess = nprocess;
         return 0;
@@ -120,13 +124,61 @@ int mpibind_get_omp_proc_bind_provided (mpibind_t *mh){
     return mh->omp_proc_bind;
 }
 
+hwloc_bitmap_t *mpibind_get_cpusets (mpibind_t *mh){
+    return mh->cpuset;
+}
+
+mpibind_gpu_list **mpibind_get_gpus (mpibind_t *mh){
+    return mh->gpu_l;
+}
+
+int *mpibind_get_num_thread (mpibind_t *mh){
+    return mh->num_thread;
+}
+
+/****************************************************************************/
+/*                                  PRINT                                   */
+/****************************************************************************/
+
+void mpibind_print(mpibind_t *mh){
+    int i;
+    mpibind_gpu_list *tmp_gpu;
+
+    char string[2048];
+    char *tmp;
+    tmp = malloc(256*sizeof(char));
+
+    for(i=0; i<mpibind_get_local_nprocess(mh); i++){
+        sprintf(tmp, "rank %d cpu ", i);
+        strcat(string, tmp);
+
+        /* cpuset */
+        hwloc_bitmap_list_asprintf(&tmp, mh->cpuset[i]);
+        strcat(string, tmp);
+
+        /* gpu */
+        sprintf(tmp, " gpu ");
+        strcat(string, tmp);
+        tmp_gpu = mh->gpu_l[i];
+        while(tmp_gpu){
+            sprintf(tmp, "%s ", tmp_gpu->gpu->name);
+            strcat(string, tmp);
+            tmp_gpu = tmp_gpu->next;
+        }
+
+        /* print */
+        printf("%s\n", string);
+        string[0] = '\0';
+    }
+    free(tmp);
+}
 
 /****************************************************************************/
 /*                                  MAIN                                    */
 /****************************************************************************/
 
 /* Main mpibind function */
-mpibind_t *mpbind (mpibind_t *mh){
+mpibind_t *mpibind (mpibind_t *mh){
     hwloc_pkg_l *pkg_l;
     hwloc_gpu_l *gpu_l;
 
@@ -137,7 +189,7 @@ mpibind_t *mpbind (mpibind_t *mh){
     //mpibind_gather_options();
     ///**** Create and retrive topology ****/
     //topology = mpibind_get_topology();
-
+    
     /**** Get the number of packages ****/
     mpibind_get_package_number(mpibind_get_topology(mh));
 
@@ -149,26 +201,26 @@ mpibind_t *mpbind (mpibind_t *mh){
     mpibind_compute_thread_number_per_package(mpibind_get_topology(mh), &pkg_l, mpibind_get_user_num_thread(mh));
 
     /**** For each package find the highest topology level such that nvertices >= nb_worker ****/
-    mpibind_mappind_depth_per_package(mpibind_get_topology(mh), &pkg_l);
+    mpibind_mappind_depth_per_package(mpibind_get_topology(mh), &pkg_l, mpibind_get_user_smt(mh));
 
     /**** Create process cpusets ****/
-    mpibind_create_cpuset(mpibind_get_topology(mh), &pkg_l);
+    mpibind_create_cpuset(mpibind_get_topology(mh), &pkg_l, mpibind_get_user_smt(mh));
 
     /*** GPU management ***/
     mpibind_gpu_list_init(mpibind_get_topology(mh), &gpu_l);
     mpibind_assign_gpu(mpibind_get_topology(mh), &pkg_l, &gpu_l);
 
     /**** Format the mh handle to contain the mpibind result allocation ****/
-    //TODO
+    mpibind_format_output(mh, pkg_l, gpu_l);
 
     /**** Print results****/
-//    if(mpibind_get_verbose(mh)) mpibind_print(mh);
+    if(mpibind_get_verbose(mh)) mpibind_print(mh);
     
-    /**** Free stuff  ****/
-    /* Free package list */
-    mpibind_package_list_destroy(&pkg_l);
-    /* Free the full gpu list */
-    mpibind_gpu_list_destroy(&gpu_l);
+//    /**** Free stuff  ****/
+//    /* Free package list */
+//    mpibind_package_list_destroy(&pkg_l);
+//    /* Free the full gpu list */
+//    mpibind_gpu_list_destroy(&gpu_l);
     
     return mh;
 }

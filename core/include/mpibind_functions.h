@@ -6,14 +6,8 @@
 /****************************************************************************/
 /*                               INCLUDES                                   */
 /****************************************************************************/
+#include "core/include/mpibind.h"
 #include "hwloc.h"
-
-/****************************************************************************/
-/*                              GLOBAL VARS                                 */
-/****************************************************************************/
-extern int verbose;
-extern int dryrun;
-extern int smt;
 
 /****************************************************************************/
 /*                              STRUCTURES                                  */
@@ -69,10 +63,10 @@ typedef struct hwloc_pkg_l_s hwloc_pkg_l;
 
 
 /****                         PRINT FUNCTIONS                            ****/
-/** mpibind_dryrun_print
- * Print results in the dryrun format
+/** mpibind_print_pkg_l
+ * Print results in the from the package list
  */
-void mpibind_dryrun_print(hwloc_pkg_l*);
+void mpibind_print_pkg_l(hwloc_pkg_l*);
 
 
 /****                         MPIBIND FUNCTIONS                          ****/
@@ -132,12 +126,12 @@ void mpibind_compute_thread_number_per_package(hwloc_topology_t, hwloc_pkg_l**, 
 /** mpibind_mappind_depth_per_package
  * For each package find the highest topology level such that nvertices >= nb_worker
  */
-void mpibind_mappind_depth_per_package(hwloc_topology_t, hwloc_pkg_l**);
+void mpibind_mappind_depth_per_package(hwloc_topology_t, hwloc_pkg_l**, int);
 
 /** mpibind_create_cpuset
  * Create a cpuset for each process, for each package in the package list
  */
-void mpibind_create_cpuset(hwloc_topology_t, hwloc_pkg_l**);
+void mpibind_create_cpuset(hwloc_topology_t, hwloc_pkg_l**, int);
 
 /** mpibind_gpu_list_init
  * Create a list of all gpu present on this topology
@@ -153,6 +147,11 @@ void mpibind_gpu_list_destroy(hwloc_gpu_l**);
  * Assign gpus to packages
  */
 void mpibind_assign_gpu(hwloc_topology_t, hwloc_pkg_l**, hwloc_gpu_l**);
+
+/** mpibind_format_output
+ * Put all information computed into the handle
+ */
+void mpibind_format_output(mpibind_t* , hwloc_pkg_l*, hwloc_gpu_l*);
 
 
 #endif /* __MPIBIND_FUNCTIONS_H__ */

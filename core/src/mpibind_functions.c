@@ -102,7 +102,6 @@ void mpibind_package_list_init(hwloc_topology_t topology, hwloc_pkg_l **pkg_l, i
      */
     numa_nb = 0;
     for (i=0; i<hwloc_get_nbobjs_by_depth(topology, hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE)); i++){
-        numa_nb++;
         /*Get the package */
         tmp_obj = hwloc_get_obj_by_depth(topology, hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE), i);
         /* Look if package contains multiple NUMA objects */
@@ -299,7 +298,7 @@ void mpibind_compute_thread_number_per_package(hwloc_topology_t topology, hwloc_
     }
 }
 
-void mpibind_mappind_depth_per_package(hwloc_topology_t topology, hwloc_pkg_l **pkg_l){
+void mpibind_mappind_depth_per_package(hwloc_topology_t topology, hwloc_pkg_l **pkg_l, int smt){
     int i, tmp_int;
     hwloc_obj_t hwloc_obj;
     hwloc_pkg_l *tmp_pkg_l;
@@ -351,7 +350,7 @@ void mpibind_mappind_depth_per_package(hwloc_topology_t topology, hwloc_pkg_l **
     }
 }
 
-void mpibind_create_cpuset(hwloc_topology_t topology, hwloc_pkg_l **pkg_l){
+void mpibind_create_cpuset(hwloc_topology_t topology, hwloc_pkg_l **pkg_l, int smt){
     int i, ii, k, tst;
     hwloc_pkg_l *tmp_pkg_l;
     hwloc_obj_t hwloc_obj, hwloc_obj2, hwloc_obj3;
@@ -561,7 +560,7 @@ void mpibind_assign_gpu(hwloc_topology_t topology, hwloc_pkg_l **pkg_l, hwloc_gp
             tmp_pkg_l->gpu_l = *gpu_l;
         }
         #ifdef __DEBUG
-        fprintf(stderr, "\tPackage%d full GPU list:", tmp_pkg_l->index);
+        fprintf(stderr, "\tPackage%d GPU list:", tmp_pkg_l->index);
         tmp_gpu_l_2 = tmp_pkg_l->gpu_l;   /* Used to keep track of the end of the gpu list */
         while(tmp_gpu_l_2 != NULL){
             fprintf(stderr, " %s", tmp_gpu_l_2->gpu->name);
@@ -577,9 +576,72 @@ void mpibind_assign_gpu(hwloc_topology_t topology, hwloc_pkg_l **pkg_l, hwloc_gp
     #endif /* __DEBUG */
 }
 
+void mpibind_format_output(mpibind_t *mh, hwloc_pkg_l *pkg_l, hwloc_gpu_l *gpu_l){
+    int i, counter_th, counter_cpuset, counter_gpu;
+    hwloc_pkg_l *tmp_pkg_l;
+    hwloc_cpuset_l *tmp_cpuset_l;
+    hwloc_gpu_l *tmp_gpu_l;
+    mpibind_gpu_list *ptr;
+
+    /* Malloc output objects */
+    mh->cpuset      = malloc(mh->local_nprocess*sizeof(hwloc_bitmap_t));
+    mh->gpu_l       = malloc(mh->local_nprocess*sizeof(mpibind_gpu_list));
+    /* The number of thread per task is stored in pkg_l->process[x].nb_thread */
+    mh->num_thread  = malloc(mh->local_nprocess*sizeof(int));
+
+    counter_th      = 0;
+    counter_cpuset  = 0;
+    counter_gpu     = 0;
+
+    tmp_pkg_l = pkg_l;          /* Used to traverse the package list */
+    while(tmp_pkg_l){
+        /* Set num_thread */
+        for(i=0; i<tmp_pkg_l->nb_process; i++){
+            mh->num_thread[counter_th] = tmp_pkg_l->process[i].nb_thread;
+            counter_th++;
+        }
+        /* Set cpusets */
+        tmp_cpuset_l = tmp_pkg_l->cpuset_l; /* Used to traverse cpuset list */
+        while(tmp_cpuset_l){
+            mh->cpuset[counter_cpuset] = hwloc_bitmap_alloc();
+            hwloc_bitmap_copy(mh->cpuset[counter_cpuset], tmp_cpuset_l->cpuset);
+            /* Next cpuset */
+            tmp_cpuset_l = tmp_cpuset_l->next;
+            counter_cpuset++;
+        }
+        /* Set Gpus */
+        for(i=0; i<tmp_pkg_l->nb_process; i++){
+            /* Gpus are the same for all process present on a package */
+            tmp_gpu_l    = tmp_pkg_l->gpu_l;    /* Used to traverse gpu list */
+            mh->gpu_l[counter_gpu] = NULL;
+            ptr = NULL;
+            while(tmp_gpu_l){
+                /* add_gpu(tmp_gpu_l, mh->gpu_l[counter_gpu]); */
+                if(ptr == NULL){
+                    mh->gpu_l[counter_gpu] = malloc(sizeof(mpibind_gpu_list));
+                    ptr = mh->gpu_l[counter_gpu];
+                    mh->gpu_l[counter_gpu]->gpu = tmp_gpu_l->gpu;
+                    mh->gpu_l[counter_gpu]->next = NULL;
+                }
+                else{
+                    ptr->next = malloc(sizeof(mpibind_gpu_list));
+                    ptr = ptr->next;
+                    ptr->gpu = tmp_gpu_l->gpu;
+                    ptr->next = NULL;
+                }
+                /* Next gpu */
+                tmp_gpu_l = tmp_gpu_l->next;
+            }
+            counter_gpu++;
+        }
+        /* next package */
+        tmp_pkg_l = tmp_pkg_l->next;
+    }
+}
+
 
 /****                         PRINT FUNCTIONS                            ****/
-void mpibind_dryrun_print(hwloc_pkg_l *head){
+void mpibind_print_pkg_l(hwloc_pkg_l *head){
     int ii;
     char *string;
     hwloc_cpuset_l *cpuset_l;
