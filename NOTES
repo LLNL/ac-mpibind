@@ -21,3 +21,14 @@ might be distributed by the algorithm and used for computation.
 My print function (mpibind_print) is not using strings and some glibc 
 functions (I checked my code with valegrind and it finds invalid
 write and jump/move).
+
+
+
+
+
+Notes on the handle usage:
+    - if mpibind_set_user_num_thread() is not used when initialising the handle
+      or if -1 is set, then the target application will use one thread per
+      process.
+    - if 0 is set, then the application will be threaded and mpibind will
+      compute the number of threads, using all the available threads.

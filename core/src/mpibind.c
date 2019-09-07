@@ -108,6 +108,10 @@ int mpibind_set_user_num_thread  (mpibind_t *mh, int num_thread){
         mh->user_num_thread = num_thread;
         return 0;
     }
+    else if(num_thread == -1){
+        mh->user_num_thread = num_thread;
+        return 0;
+    }
     else{
         mh->user_num_thread = 0;
         return 0;

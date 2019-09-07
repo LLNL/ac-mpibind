@@ -32,12 +32,23 @@ int main(){
     hwloc_topology_load(topology);
 
 
+
     /* mpibind handle initialisation */
     mpibind_set_topology(handle, topology);
-    mpibind_set_local_nprocess(handle, 4);
     mpibind_set_verbose(handle, 1); /* 1 for true */
-    mpibind_set_user_smt(handle, 1);
-    mpibind_set_user_num_thread(handle, 2);
+
+    mpibind_set_local_nprocess(handle, 1);
+    //mpibind_set_local_nprocess(handle, 2);
+    //mpibind_set_local_nprocess(handle, 4);
+    
+    //mpibind_set_user_smt(handle, 1);
+    mpibind_set_user_smt(handle, 4);
+
+    //mpibind_set_user_num_thread(handle, -1);
+    //mpibind_set_user_num_thread(handle, 0);
+    mpibind_set_user_num_thread(handle, 4);
+
+
 
     /* launch mpibind */
     handle = mpibind(handle);
