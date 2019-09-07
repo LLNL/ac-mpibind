@@ -19,7 +19,7 @@ mpibind_t *mpibind_create (void){
     handle->omp_proc_bind       = -1;
 
     handle->cpuset              = NULL;
-    handle-> gpu_l              = NULL;
+    handle->gpu_l               = NULL;
     handle->num_thread          = NULL;
 
     return handle;
@@ -28,6 +28,30 @@ mpibind_t *mpibind_create (void){
 /* Destroy mpibind handle and free associated memory
  **/
 void mpibind_destroy (mpibind_t *mh){
+    int i;
+    mpibind_gpu_list *ptr;
+
+    /* Free GPU list */
+    for(i=0; i<mh->local_nprocess; i++){
+        while(mh->gpu_l[i]){
+            ptr = mh->gpu_l[i];
+            mh->gpu_l[i] = mh->gpu_l[i]->next;
+            free(ptr);
+        }
+    }
+    free(mh->gpu_l);
+
+    /* Free num_thread arrays */
+    free(mh->num_thread);
+
+    /* Free cpuset array */
+    for(i=0; i<mh->local_nprocess; i++){
+        hwloc_bitmap_free(mh->cpuset[i]);
+    }
+    free(mh->cpuset);
+
+
+    /* free handle */
     free(mh);
 }
 
@@ -144,22 +168,23 @@ void mpibind_print(mpibind_t *mh){
     int i;
     mpibind_gpu_list *tmp_gpu;
 
-    char string[2048];
-    char *tmp;
-    tmp = malloc(256*sizeof(char));
+    char string[2048], tmp[256];
+    char *tmp2;
 
     for(i=0; i<mpibind_get_local_nprocess(mh); i++){
         sprintf(tmp, "rank %d cpu ", i);
         strcat(string, tmp);
 
         /* cpuset */
-        hwloc_bitmap_list_asprintf(&tmp, mh->cpuset[i]);
-        strcat(string, tmp);
+        hwloc_bitmap_list_asprintf(&tmp2, mh->cpuset[i]);
+        strcat(string, tmp2);
 
         /* gpu */
-        sprintf(tmp, " gpu ");
-        strcat(string, tmp);
         tmp_gpu = mh->gpu_l[i];
+        if(tmp_gpu){
+            sprintf(tmp, " gpu ");
+            strcat(string, tmp);
+        }
         while(tmp_gpu){
             sprintf(tmp, "%s ", tmp_gpu->gpu->name);
             strcat(string, tmp);
@@ -169,8 +194,9 @@ void mpibind_print(mpibind_t *mh){
         /* print */
         printf("%s\n", string);
         string[0] = '\0';
+
+        free(tmp2);
     }
-    free(tmp);
 }
 
 /****************************************************************************/
@@ -216,11 +242,11 @@ mpibind_t *mpibind (mpibind_t *mh){
     /**** Print results****/
     if(mpibind_get_verbose(mh)) mpibind_print(mh);
     
-//    /**** Free stuff  ****/
-//    /* Free package list */
-//    mpibind_package_list_destroy(&pkg_l);
-//    /* Free the full gpu list */
-//    mpibind_gpu_list_destroy(&gpu_l);
+    /**** Free stuff  ****/
+    /* Free package list */
+    mpibind_package_list_destroy(&pkg_l);
+    /* Free the full gpu list */
+    mpibind_gpu_list_destroy(&gpu_l);
     
     return mh;
 }

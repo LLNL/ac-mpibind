@@ -4,8 +4,9 @@ int main(){
     int ret;
 
     hwloc_topology_t topology;
-//    char topo_path[128] = "/g/g90/loussert/Work/loussert-mpibind/topos/lassen_login.xml";
-    char topo_path[128] = "/g/g90/loussert/Work/loussert-mpibind/topos/epyc-dual-sock.xml";
+//    char topo_path[128] = "/g/g90/loussert/Work/loussert-mpibind/topos/quartz_topo.xml";
+    char topo_path[128] = "/g/g90/loussert/Work/loussert-mpibind/topos/lassen_login.xml";
+//    char topo_path[128] = "/g/g90/loussert/Work/loussert-mpibind/topos/epyc-dual-sock.xml";
 
     mpibind_t *handle;
     handle = mpibind_create();
@@ -44,6 +45,10 @@ int main(){
     /* print results */
     printf("\n\n#### Printing results from test launcher:\n");
     mpibind_print(handle);
+
+    /* Free stuff */
+    mpibind_destroy(handle);
+    hwloc_topology_destroy(topology);
 
     return 0;
 }

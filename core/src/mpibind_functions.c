@@ -209,7 +209,7 @@ void mpibind_package_list_init(hwloc_topology_t topology, hwloc_pkg_l **pkg_l, i
 
 void mpibind_package_list_destroy(hwloc_pkg_l **pkg_l){
     hwloc_pkg_l *tmp_pkg_l;
-    hwloc_gpu_l *tmp_gpu_l, *tmp_gpu_l_2;
+    //hwloc_gpu_l *tmp_gpu_l, *tmp_gpu_l_2;
     hwloc_cpuset_l *tmp_cpuset_l;
 
     /* Free pkg_list (with their cpuset and gpu list) */
@@ -225,13 +225,14 @@ void mpibind_package_list_destroy(hwloc_pkg_l **pkg_l){
             hwloc_bitmap_free(tmp_cpuset_l_2->cpuset);
             free(tmp_cpuset_l_2);
         }
+        free(tmp_pkg_l->process);
         /* Free gpu list */
-        tmp_gpu_l = tmp_pkg_l->gpu_l;
-        while(tmp_gpu_l != NULL){
-            tmp_gpu_l_2 = tmp_gpu_l;
-            tmp_gpu_l   = tmp_gpu_l->next;
-            free(tmp_gpu_l_2);
-        }
+        //tmp_gpu_l = tmp_pkg_l->gpu_l;
+        //while(tmp_gpu_l != NULL){
+        //    tmp_gpu_l_2 = tmp_gpu_l;
+        //    tmp_gpu_l   = tmp_gpu_l->next;
+        //    free(tmp_gpu_l_2);
+        //}
         /* Get next element and Free current package list element */
         tmp_pkg_l_2 = tmp_pkg_l;
         tmp_pkg_l = tmp_pkg_l->next;
