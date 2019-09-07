@@ -1,0 +1,23 @@
+Here are my last minute thoughts and everything I could not implement in my
+mpibind program.
+
+
+1 - NUMA / hwloc_package
+Late in the internship I realised (thanks to Edgar) that hwloc is not 
+consistent with NUMA and packages objects. 
+Sometimes package = NUMA, and others there are multiple NUMA in one package.
+This might have led to small errors in the implementation.
+I made some tests and everything seems fine with topologies that look like
+I thought they all would (quartz, lassen_login, and so on). 
+However it does not with the epyc_dual_soc one where packages contain
+multiple numas. In this case my program only uses the first numa.
+
+2 - GPU detection
+In the mpibind script, finding the gpu used for computation is done by checking
+there name. This is not done in the c implementation, thus the display gpus 
+might be distributed by the algorithm and used for computation.
+
+3 - Print function
+My print function (mpibind_print) is not using strings and some glibc 
+functions (I checked my code with valegrind and it finds invalid
+write and jump/move).
