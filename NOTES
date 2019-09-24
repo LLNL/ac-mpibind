@@ -1,6 +1,3 @@
-Here are my last minute thoughts and everything I could not implement in my
-mpibind program.
-
 
 1 - NUMA / hwloc_package
 Late in the internship I realised (thanks to Edgar) that hwloc is not 
