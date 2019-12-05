@@ -1,5 +1,0 @@
-export LD_LIBRARY_PATH=$HOME/Work/loussert-mpibind/bin:$LD_LIBRARY_PATH
-
-export MPIBIND_TOPOLOGY_FILE=$HOME/Work/loussert-mpibind/topos/lassen_login.xml
-
-export MPIBIND=v.dry.smt=2
