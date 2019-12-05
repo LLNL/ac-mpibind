@@ -1,5 +1,5 @@
 
-# C version of mpibind
+# A C version of mpibind
 
 A work-in-progress version of mpibind in C that uses the hwloc C-API. 
 
@@ -7,7 +7,7 @@ A work-in-progress version of mpibind in C that uses the hwloc C-API.
 
 TBD
 
-### Getting Involved
+## Getting Involved
 
 TBD
 
