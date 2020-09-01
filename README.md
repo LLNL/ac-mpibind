@@ -1,7 +1,9 @@
+This code is obsolete. *mpibind* is hosted at [LLNL/mpibind](https://github.com/LLNL/mpibind)
+
 
 # A C version of mpibind
 
-A work-in-progress version of mpibind in C that uses the hwloc C-API. 
+A work-in-progress, student-based version of mpibind in C that uses the hwloc C-API. 
 
 ## Getting Started
 
